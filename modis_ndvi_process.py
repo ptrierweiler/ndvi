@@ -38,16 +38,26 @@ for d in doy_tuples:
     print "Downloading image"
     pydown.downloadsAllDay()
 
-    list_dir = os.listdir(homedir)
-
+    # Obtaining list of hdf files
     file_list = []
-    for i in list_dir:
+    for i in os.listdir(homedir):
         if i.split('.')[-1] == 'hdf':
             file_list.append(i)
-
+    os.
     for f in file_list:
         hdf = homedir + '/' + f
         hdf_pre = '.'.join(hdf.split('.')[0:3])
         con = pymodis.convertmodis_gdal.convertModisGDAL(hdfname=hdf, outformat='GTiff', epsg=29101, subset=[1,1,1], res=250, prefix=hdf_pre)
         # unpacking HDF, reprojecting and converting to Gtiff
         con.run()
+        print "Deleting HDF file: " + f
+        os.remove(hdf)
+
+    #Obtaining list of gtiff files
+    gtif_list = []
+    for i in os.listdir(homedir):
+        if i.split('.')[-1] == 'tif':
+            gtif_list.append(i)
+
+    #Ingetsting images into postgres
+    
