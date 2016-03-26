@@ -1,17 +1,20 @@
-#!/usr/bin/python3
+#!/usr/bin/python2
 # Downloads modis tile ingest and calculates ndvi
 import psycopg2
 import sys
 import os
 import argparse
-getopt
+import datetime
+import pymodis
 
 sat='MOLT'
 prod = 'MOD09Q1.005'
 tile = 'h13v11'
-year = 2015
+year = 2016
 st_doy = 1
-ed_doy = 365
+ed_doy = 9
+
+homedir = os.path.expanduser('~') +'/modis'
 
 st_pydate = datetime.datetime.strptime(str(year)+str(st_doy).zfill(3),'%Y%j')
 
@@ -21,10 +24,30 @@ doy_tuples = tuple(range(st_doy,ed_doy,8))
 
 for d in doy_tuples:
     doy = str(d).zfill(3)
-    ed_pydate = datetime.datetime.strptime(year+doy,'%Y%j')
+    ed_pydate = datetime.datetime.strptime(str(year)+doy,'%Y%j')
     ed_date = ed_pydate.strftime('%Y-%m-%d')
 
-    pydown = pymodis.downmodis.downModis('/home/ptrierweiler/modis',
+    #Creating modis download object
+    pydown = pymodis.downmodis.downModis(homedir,
     password=None, user='anonymous', url='http://e4ftl01.cr.usgs.gov',
-    tiles='h12v10', path='MOLT', product='MOD09Q1.005',
+    tiles=tile, path=sat, product=prod,
     today=st_date,enddate=ed_date)
+
+    #Connecting and downloading
+    pydown.connect()
+    print "Downloading image"
+    pydown.downloadsAllDay()
+
+    list_dir = os.listdir(homedir)
+
+    file_list = []
+    for i in list_dir:
+        if i.split('.')[-1] == 'hdf':
+            file_list.append(i)
+
+    for f in file_list:
+        hdf = homedir + '/' + f
+        hdf_pre = '.'.join(hdf.split('.')[0:3])
+        con = pymodis.convertmodis_gdal.convertModisGDAL(hdfname=hdf, outformat='GTiff', epsg=29101, subset=[1,1,1], res=250, prefix=hdf_pre)
+        # unpacking HDF, reprojecting and converting to Gtiff
+        con.run()
