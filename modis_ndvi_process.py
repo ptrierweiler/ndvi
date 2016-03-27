@@ -62,7 +62,7 @@ for d in doy_tuples:
     # Ingetsting images into postgres
     for tif in gtif_list:
         schema = os.path.basename(tif).split('.')[0].lower()
-        layer = '.'.join(os.path.basename(tif).split('.')[1:3]).lower()
+        layer = '.'.join(os.path.basename(tif).split('.')[1:3]).lower().replace('.','_')
         os.system("raster2pgsql -C -I {tif} -d {schema}.{layer} \
         | psql patrick".format(tif=tif, schema=schema, layer=layer))
 
@@ -84,7 +84,7 @@ for d in doy_tuples:
     ndvi = rast1.replace('b01','ndvi')
     # create ndvi table
     cur.execute("create table {schema}.{ndvi} \
-    (rid int primary key, rast raster)".format(schema = schema, ndvi = ndvi)
+    (rid int primary key, rast raster)".format(schema = schema, ndvi = ndvi))
 
     cur.execute("insert into mod09q1.ndvi(rid,rast) select \
      1,st_mapalgebra(r1.rast,1,r2.rast,1, 'case when [rast1.val] + [rast2.val] = 0 then Null else ([rast1.val] - [rast2.val])/([rast1.val] + [rast2.val]) end'::text,'32BF'::text,Null) from mod09q1.a2016033_h12v10_sur_refl_b01 as r1, mod09q1.a2016033_h12v10_sur_refl_b02 as r2")
