@@ -77,14 +77,18 @@ for d in doy_tuples:
     # assigning rasters to variables
     for i in db_list:
         if i[0].split('_')[-1] == 'b01':
-            rast1 = i
+            band1 = i
         elif i[0].split('_')[-1] == 'b02':
-            rast2 = i
+            band2 = i
     # creating ndvi output
-    ndvi = rast1.replace('b01','ndvi')
+    ndvi = band1.replace('b01','ndvi')
     # create ndvi table
     cur.execute("create table {schema}.{ndvi} \
     (rid int primary key, rast raster)".format(schema = schema, ndvi = ndvi))
 
-    cur.execute("insert into mod09q1.ndvi(rid,rast) select \
-     1,st_mapalgebra(r1.rast,1,r2.rast,1, 'case when [rast1.val] + [rast2.val] = 0 then Null else ([rast1.val] - [rast2.val])/([rast1.val] + [rast2.val]) end'::text,'32BF'::text,Null) from mod09q1.a2016033_h12v10_sur_refl_b01 as r1, mod09q1.a2016033_h12v10_sur_refl_b02 as r2")
+    cur.execute("insert into {schema}.{ndvi}(rid,rast) select \
+    1,st_mapalgebra(r1.rast,1,r2.rast,1, 'case when [rast1.val] + [rast2.val] = 0 \
+    then Null else ([rast1.val] - [rast2.val])/([rast1.val] + [rast2.val])\
+    end'::text,'32BF'::text,Null) from {schema}.{band1} as r1, \
+    {schema}.{band2} as r2".format(ndvi=ndvi, schema=schema, band1=band1,
+     band2=band2))
