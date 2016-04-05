@@ -7,7 +7,7 @@ import argparse
 import datetime
 import pymodis
 
-sat='MOLT'
+sat= 'MOLT'
 prod = 'MOD09Q1.005'
 tile = 'h13v11'
 year = 2016
@@ -43,7 +43,7 @@ for d in doy_tuples:
     for i in os.listdir(homedir):
         if i.split('.')[-1] == 'hdf':
             file_list.append(i)
-    os.
+
     for f in file_list:
         hdf = homedir + '/' + f
         hdf_pre = '.'.join(hdf.split('.')[0:3])
@@ -70,6 +70,7 @@ for d in doy_tuples:
     srch_layer = '_'.join(layer.split('_')[0:2])
     conn = psycopg2.connect("dbname=patrick")
     cur = conn.cursor()
+    conn.autocommit = True
     cur.execute("select r_table_name from raster_columns where \
     r_table_schema = '{schema}' and r_table_name ~ '{srch_layer}'".format(
     schema = schema, srch_layer = srch_layer))
@@ -86,9 +87,19 @@ for d in doy_tuples:
     cur.execute("create table {schema}.{ndvi} \
     (rid int primary key, rast raster)".format(schema = schema, ndvi = ndvi))
 
+    # cacluating ndvi and outputting to ndvi table
     cur.execute("insert into {schema}.{ndvi}(rid,rast) select \
-    1,st_mapalgebra(r1.rast,1,r2.rast,1, 'case when [rast1.val] + [rast2.val] = 0 \
-    then Null else ([rast1.val] - [rast2.val])/([rast1.val] + [rast2.val])\
+    1,st_mapalgebra(r1.rast,1,r2.rast,1, 'case when [rast2.val] + [rast1.val] = 0 \
+    then Null else ([rast2.val] - [rast1.val])/([rast2.val] + [rast1.val])\
     end'::text,'32BF'::text,Null) from {schema}.{band1} as r1, \
     {schema}.{band2} as r2".format(ndvi=ndvi, schema=schema, band1=band1,
      band2=band2))
+
+    # Summerizing ndvi to polygons
+    cur.execute("insert into ndvi.brazil SELECT uf,regiao, micro, geocodigo, \
+    {year}::int as year, '{doy}'::varchar(3) as doy, '{date}'::date as date, \
+    (stats).* FROM (SELECT uf, regiao, geocodigo, micro, \
+    ST_SummaryStats(ST_Clip(rast, st_transform(brazil.micro_regions.wkb_geometry, \
+    29101))::raster) as stats from {schema}.{ndvi}, brazil.micro_regions where \
+    st_intersects(rast, st_transform(brazil.micro_regions.wkb_geometry,29101))) \
+    as foo".format(year=year, doy=doy, date=ed_date, schema=schema, ndvi=ndvi))
