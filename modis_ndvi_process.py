@@ -98,8 +98,10 @@ for d in doy_tuples:
     # Summerizing ndvi to polygons
     cur.execute("insert into ndvi.brazil SELECT uf,regiao, micro, geocodigo, \
     {year}::int as year, '{doy}'::varchar(3) as doy, '{date}'::date as date, \
-    (stats).* FROM (SELECT uf, regiao, geocodigo, micro, \
+    (stats).* , med FROM (SELECT uf, regiao, geocodigo, micro, \
     ST_SummaryStats(ST_Clip(rast, st_transform(brazil.micro_regions.wkb_geometry, \
-    29101))::raster) as stats from {schema}.{ndvi}, brazil.micro_regions where \
+    29101))::raster) as stats, ST_Quantile(ST_Clip(rast, \
+    st_transform(brazil.micro_regions.wkb_geometry, 29101))::raster, .5) as med \
+    from {schema}.{ndvi}, brazil.micro_regions where \
     st_intersects(rast, st_transform(brazil.micro_regions.wkb_geometry,29101))) \
     as foo".format(year=year, doy=doy, date=ed_date, schema=schema, ndvi=ndvi))
