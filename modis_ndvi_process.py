@@ -14,6 +14,8 @@ year = 2016
 st_doy = 1
 ed_doy = 9
 
+schema = prod.split('.')[0].lower()
+
 homedir = os.path.expanduser('~') +'/modis'
 
 st_pydate = datetime.datetime.strptime(str(year)+str(st_doy).zfill(3),'%Y%j')
@@ -61,26 +63,29 @@ for d in doy_tuples:
 
     # Ingetsting images into postgres
     for tif in gtif_list:
-        schema = os.path.basename(tif).split('.')[0].lower()
         layer = '.'.join(os.path.basename(tif).split('.')[1:3]).lower().replace('.','_')
         os.system("raster2pgsql -C -I {tif} -d {schema}.{layer} \
         | psql patrick".format(tif=tif, schema=schema, layer=layer))
 
     # Seaching for rasters in the db
-    srch_layer = '_'.join(layer.split('_')[0:2])
+    for i in gtif_list:
+        if 'b01' in i:
+            b_layer = '.'.join(os.path.basename(i).split('.')[1:3]).lower().replace('.','_')
+
+    srch_layer = '_'.join(b_layer.split('_')[0:2])
     conn = psycopg2.connect("dbname=patrick")
     cur = conn.cursor()
     conn.autocommit = True
     cur.execute("select r_table_name from raster_columns where \
     r_table_schema = '{schema}' and r_table_name ~ '{srch_layer}'".format(
-    schema = schema, srch_layer = srch_layer))
+    schema = schema.lower(), srch_layer = srch_layer))
     db_list = cur.fetchall()
     # assigning rasters to variables
     for i in db_list:
         if i[0].split('_')[-1] == 'b01':
-            band1 = i
+            band1 = i[0]
         elif i[0].split('_')[-1] == 'b02':
-            band2 = i
+            band2 = i[0]
     # creating ndvi output
     ndvi = band1.replace('b01','ndvi')
     # create ndvi table
@@ -96,7 +101,7 @@ for d in doy_tuples:
      band2=band2))
 
     # Summerizing ndvi to polygons
-    cur.execute("insert into ndvi.brazil SELECT uf,regiao, micro, geocodigo, \
+    cur.execute("insert into {schema}.brazil SELECT uf,regiao, micro, geocodigo, \
     {year}::int as year, '{doy}'::varchar(3) as doy, '{date}'::date as date, \
     (stats).* , med FROM (SELECT uf, regiao, geocodigo, micro, \
     ST_SummaryStats(ST_Clip(rast, st_transform(brazil.micro_regions.wkb_geometry, \
@@ -105,3 +110,15 @@ for d in doy_tuples:
     from {schema}.{ndvi}, brazil.micro_regions where \
     st_intersects(rast, st_transform(brazil.micro_regions.wkb_geometry,29101))) \
     as foo".format(year=year, doy=doy, date=ed_date, schema=schema, ndvi=ndvi))
+
+    # Cleaning DB
+    for tab in [band1, band2, ndvi]:
+        print "Dropping {schema}.{tab}"
+        cur.execute("select dropgeometrytable('{schema}','{tab}')".format(schema=schema,
+         tab=tab))
+
+    #Deleting tif files
+    for i in gtif_list:
+        print "Deleting " + i
+        os.remove(i)
+        os.remove(i + '.aux.xml')
