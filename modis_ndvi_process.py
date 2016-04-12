@@ -7,27 +7,50 @@ import argparse
 import datetime
 import pymodis
 
-sat= 'MOLT'
-prod = 'MOD09Q1.005'
-tile = 'h13v11'
-year = 2016
-st_doy = 1
-ed_doy = 9
+parser = argparse.ArgumentParser(description='Download and process Modis')
 
-schema = prod.split('.')[0].lower()
+parser.add_argument('-s', type=str, metavar='MOLT', nargs='*', required=True,
+                    help='The MODIS satilite Terra: MOLT or Agua: MOLA')
+parser.add_argument('-p', metavar='MOD09Q1.006', type=str, nargs='*',
+                     required=True, help='MODIS product')
+parser.add_argument('-t', metavar='h13v11', type=str, nargs='*', required=True,
+                    help='MODIS tile')
+parser.add_argument('-y', metavar=2016, type=int, nargs='*',
+                    default=datetime.datetime.now().year,
+                    help='year as int defaults to current year')
+parser.add_argument('-b', metavar=1, type=int, nargs='*',
+                    default=1, help='Start doy as int, defauts 1')
+parser.add_argument('-e', metavar=365, type=int, nargs='*',
+                    default=365, help='End doy as int defaults to 365')
 
-homedir = os.path.expanduser('~') +'/modis'
+args = parser.parse_args()
 
-st_pydate = datetime.datetime.strptime(str(year)+str(st_doy).zfill(3),'%Y%j')
+sat = args.s[0]
+prod = args.p[0]
+tile = args.t[0]
+year = args.y
+st_doy = args.b
+ed_doy = args.e
 
-st_date = st_pydate.strftime('%Y-%m-%d')
+print "sat: " + sat
+print "prod: " + prod
+print "tile: " + tile
+print "year: " + str(year)
+print "stdoy: " + str(st_doy)
+print "eddoy: " + str(ed_doy)
 
-doy_tuples = tuple(range(st_doy,ed_doy,8))
+def process_func(sat, prod, tile, year, st_doy, ed_doy):
+    # Creating dates and paths
+    schema = prod.split('.')[0].lower()
+    homedir = os.path.expanduser('~') +'/modis'
+    st_pydate = datetime.datetime.strptime(str(year)+str(st_doy).zfill(3),'%Y%j')
+    st_date = st_pydate.strftime('%Y-%m-%d')
+    doy_tuples = tuple(range(st_doy,ed_doy,8))
 
-for d in doy_tuples:
-    doy = str(d).zfill(3)
-    ed_pydate = datetime.datetime.strptime(str(year)+doy,'%Y%j')
-    ed_date = ed_pydate.strftime('%Y-%m-%d')
+    for d in doy_tuples:
+        doy = str(d).zfill(3)
+        ed_pydate = datetime.datetime.strptime(str(year)+doy,'%Y%j')
+        ed_date = ed_pydate.strftime('%Y-%m-%d')
 
     #Creating modis download object
     pydown = pymodis.downmodis.downModis(homedir,
@@ -49,7 +72,8 @@ for d in doy_tuples:
     for f in file_list:
         hdf = homedir + '/' + f
         hdf_pre = '.'.join(hdf.split('.')[0:3])
-        con = pymodis.convertmodis_gdal.convertModisGDAL(hdfname=hdf, outformat='GTiff', epsg=29101, subset=[1,1,1], res=250, prefix=hdf_pre)
+        con = pymodis.convertmodis_gdal.convertModisGDAL(hdfname=hdf,
+        outformat='GTiff', epsg=29101, subset=[1,1,1], res=250, prefix=hdf_pre)
         # unpacking HDF, reprojecting and converting to Gtiff
         con.run()
         print "Deleting HDF file: " + f
@@ -122,3 +146,5 @@ for d in doy_tuples:
         print "Deleting " + i
         os.remove(i)
         os.remove(i + '.aux.xml')
+
+# process_func(sat, prod, tile, year, st_doy, ed_doy)
