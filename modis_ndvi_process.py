@@ -15,12 +15,12 @@ parser.add_argument('-p', metavar='MOD09Q1.006', type=str, nargs='*',
                      required=True, help='MODIS product')
 parser.add_argument('-t', metavar='h13v11', type=str, nargs='*', required=True,
                     help='MODIS tile')
-parser.add_argument('-y', metavar=2016, type=int, nargs='*',
+parser.add_argument('-y', metavar=2016, type=int, nargs='+',
                     default=datetime.datetime.now().year,
                     help='year as int defaults to current year')
-parser.add_argument('-b', metavar=1, type=int, nargs='*',
+parser.add_argument('-b', metavar=1, type=int, nargs='+',
                     default=1, help='Start doy as int, defauts 1')
-parser.add_argument('-e', metavar=365, type=int, nargs='*',
+parser.add_argument('-e', metavar=365, type=int, nargs='+',
                     default=365, help='End doy as int defaults to 365')
 
 args = parser.parse_args()
@@ -28,9 +28,9 @@ args = parser.parse_args()
 sat = args.s[0]
 prod = args.p[0]
 tile = args.t[0]
-year = args.y
-st_doy = args.b
-ed_doy = args.e
+year = args.y[0]
+st_doy = args.b[0]
+ed_doy = args.e[0]
 
 print "sat: " + sat
 print "prod: " + prod
@@ -48,7 +48,10 @@ def process_func(sat, prod, tile, year, st_doy, ed_doy):
     # Changing end doy for current year,
     # End doy should exceed the the current doy
     if year == datetime.datetime.now().year and ed_date == 365:
-        ed_date = datetime.datetime.now().strftime('%j').zfill(
+        ed_date = datetime.datetime.now().strftime('%j').zfill(3)
+
+    if ed_doy == 1:
+        ed_doy = ed_doy + 1
 
     doy_tuples = tuple(range(st_doy,ed_doy,8))
 
@@ -56,6 +59,7 @@ def process_func(sat, prod, tile, year, st_doy, ed_doy):
         doy = str(d).zfill(3)
         ed_pydate = datetime.datetime.strptime(str(year)+doy,'%Y%j')
         ed_date = ed_pydate.strftime('%Y-%m-%d')
+        print "Processing: " + doy
 
         #Creating modis download object
         pydown = pymodis.downmodis.downModis(homedir,
@@ -121,6 +125,7 @@ def process_func(sat, prod, tile, year, st_doy, ed_doy):
         cur.execute("create table {schema}.{ndvi} \
         (rid int primary key, rast raster)".format(schema = schema, ndvi = ndvi))
 
+        print "Calculating {modis}.{ndvi}".format(modis=modis, ndvi=ndvi)
         # cacluating ndvi and outputting to ndvi table
         cur.execute("insert into {schema}.{ndvi}(rid,rast) select \
         1,st_mapalgebra(r1.rast,1,r2.rast,1, 'case when [rast2.val] + [rast1.val] = 0 \
@@ -130,6 +135,7 @@ def process_func(sat, prod, tile, year, st_doy, ed_doy):
          band2=band2))
 
         # Summerizing ndvi to polygons
+        print "Summerizing ndvi"
         cur.execute("insert into ndvi.brazil SELECT uf,regiao, micro, geocodigo, \
         {year}::int as year, '{doy}'::varchar(3) as doy, '{date}'::date as date, \
         '{ndvi}' as image, (stats).* , med FROM (SELECT uf, regiao, geocodigo, \
@@ -152,4 +158,4 @@ def process_func(sat, prod, tile, year, st_doy, ed_doy):
             os.remove(i)
             os.remove(i + '.aux.xml')
 
-# process_func(sat, prod, tile, year, st_doy, ed_doy)
+process_func(sat, prod, tile, year, st_doy, ed_doy)
