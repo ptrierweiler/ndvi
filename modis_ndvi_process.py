@@ -43,12 +43,10 @@ def process_func(sat, prod, tile, year, st_doy, ed_doy):
     # Creating dates and paths
     schema = prod.split('.')[0].lower()
     homedir = os.path.expanduser('~') +'/modis'
-    st_pydate = datetime.datetime.strptime(str(year)+str(st_doy).zfill(3),'%Y%j')
-    st_date = st_pydate.strftime('%Y-%m-%d')
     # Changing end doy for current year,
     # End doy should exceed the the current doy
     if year == datetime.datetime.now().year and ed_date == 365:
-        ed_date = datetime.datetime.now().strftime('%j').zfill(3)
+        ed_doy = datetime.datetime.now().strftime('%j').zfill(3)
 
     if ed_doy == 1:
         ed_doy = ed_doy + 1
@@ -57,15 +55,19 @@ def process_func(sat, prod, tile, year, st_doy, ed_doy):
 
     for d in doy_tuples:
         doy = str(d).zfill(3)
-        ed_pydate = datetime.datetime.strptime(str(year)+doy,'%Y%j')
-        ed_date = ed_pydate.strftime('%Y-%m-%d')
-        print "Processing: " + doy
+        doy2 = str(d + 1).zfill(3)
+        doy_pydate = datetime.datetime.strptime(str(year)+str(doy).zfill(3),'%Y%j')
+        doy2_pydate = datetime.datetime.strptime(str(year)+str(doy2).zfill(3),'%Y%j')
+        doy_date = doy_pydate.strftime('%Y-%m-%d')
+        doy2_date doy2_pydate.strftime('%Y-%m-%d')
+        print "Processing: " + str(doy)
+        print doy_date
 
         #Creating modis download object
         pydown = pymodis.downmodis.downModis(homedir,
         password=None, user='anonymous', url='http://e4ftl01.cr.usgs.gov',
         tiles=tile, path=sat, product=prod,
-        today=st_date,enddate=ed_date)
+        today=doy2_date,enddate=doy_date)
 
         #Connecting and downloading
         pydown.connect()
@@ -95,7 +97,9 @@ def process_func(sat, prod, tile, year, st_doy, ed_doy):
                 gtif_list.append(homedir +'/'+i)
 
         # Ingetsting images into postgres
+
         for tif in gtif_list:
+            print "Loading into db: "
             layer = '.'.join(os.path.basename(tif).split('.')[1:3]).lower().replace('.','_')
             os.system("raster2pgsql -C -I {tif} -d {schema}.{layer} \
             | psql patrick".format(tif=tif, schema=schema, layer=layer))
