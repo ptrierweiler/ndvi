@@ -9,28 +9,28 @@ import pymodis
 
 parser = argparse.ArgumentParser(description='Download and process Modis')
 
-parser.add_argument('-s', type=str, metavar='MOLT', nargs='*', required=True,
+parser.add_argument('-s', type=str, metavar='MOLT', nargs='?', required=True,
                     help='The MODIS satilite Terra: MOLT or Agua: MOLA')
-parser.add_argument('-p', metavar='MOD09Q1.006', type=str, nargs='*',
+parser.add_argument('-p', metavar='MOD09Q1.006', type=str, nargs='?',
                      required=True, help='MODIS product')
-parser.add_argument('-t', metavar='h13v11', type=str, nargs='*', required=True,
+parser.add_argument('-t', metavar='h13v11', type=str, nargs='?', required=True,
                     help='MODIS tile')
-parser.add_argument('-y', metavar=2016, type=int, nargs='+',
+parser.add_argument('-y', metavar=2016, type=int, nargs='?',
                     default=datetime.datetime.now().year,
                     help='year as int defaults to current year')
-parser.add_argument('-b', metavar=1, type=int, nargs='+',
+parser.add_argument('-b', metavar=1, type=int, nargs='?',
                     default=1, help='Start doy as int, defauts 1')
-parser.add_argument('-e', metavar=365, type=int, nargs='+',
+parser.add_argument('-e', metavar=365, type=int, nargs='?',
                     default=365, help='End doy as int defaults to 365')
 
 args = parser.parse_args()
 
-sat = args.s[0]
-prod = args.p[0]
-tile = args.t[0]
-year = args.y[0]
-st_doy = args.b[0]
-ed_doy = args.e[0]
+sat = args.s
+prod = args.p
+tile = args.t
+year = args.y
+st_doy = args.b
+ed_doy = args.e
 
 print "sat: " + sat
 print "prod: " + prod
@@ -59,7 +59,7 @@ def process_func(sat, prod, tile, year, st_doy, ed_doy):
         doy_pydate = datetime.datetime.strptime(str(year)+str(doy).zfill(3),'%Y%j')
         doy2_pydate = datetime.datetime.strptime(str(year)+str(doy2).zfill(3),'%Y%j')
         doy_date = doy_pydate.strftime('%Y-%m-%d')
-        doy2_date doy2_pydate.strftime('%Y-%m-%d')
+        doy2_date = doy2_pydate.strftime('%Y-%m-%d')
         print "Processing: " + str(doy)
         print doy_date
 
